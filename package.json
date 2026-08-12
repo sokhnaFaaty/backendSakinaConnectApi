@@ -4,7 +4,16 @@
   "description": "",
   "main": "drizzle.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "node src/db/seed.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [],
   "author": "",
@@ -12,10 +21,14 @@
   "type": "module",
   "dependencies": {
     "@hono/node-server": "^2.1.0",
+    "@hono/swagger-ui": "^0.6.1",
+    "@hono/zod-openapi": "^1.5.2",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.1",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.10"
