@@ -2,7 +2,7 @@
   "name": "sakina-connect-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "drizzle.config.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:generate": "drizzle-kit generate",
@@ -13,7 +13,7 @@
     "db:seed": "node src/db/seed.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "keywords": [],
   "author": "",
