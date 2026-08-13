@@ -10,7 +10,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "node src/db/seed.js"
+    "db:seed": "node src/db/seed.js",
+    "db:motsdepasse": "node src/db/motsdepasse.js"
   },
   "engines": {
     "node": "22.x"

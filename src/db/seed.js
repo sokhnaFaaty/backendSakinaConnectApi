@@ -10,11 +10,18 @@ import { hashMotDePasse } from '../services/auth.js';
 // Les codes (U001, G001…) viennent de l'ancien json-server. Ils ne sont pas
 // stockés : ils servent uniquement à relier les entités entre elles ici, et
 // sont remplacés par les UUID réellement générés par Postgres.
-// Les mots de passe ci-dessous sont des identifiants de démonstration, visibles
-// par quiconque lit le dépôt. Ils ne servent qu'au développement local.
-// En production, définis SEED_PASSWORD dans .env (non suivi par git) : il
-// remplace alors tous les mots de passe de démonstration.
-const motDePasseDe = (defaut) => process.env.SEED_PASSWORD ?? defaut;
+// Aucun mot de passe n'est écrit dans ce fichier : il est versionné sur GitHub.
+// Ils viennent de .env (ignoré par git), une variable par rôle.
+const motDePasseDuRole = (role) => {
+  const cle = `SEED_MDP_${role}`;
+  const valeur = process.env[cle];
+  if (!valeur) {
+    throw new Error(
+      `${cle} manquant dans .env — définis un mot de passe pour les comptes ${role}.`
+    );
+  }
+  return valeur;
+};
 
 const ids = new Map();
 const ref = (code) => {
@@ -35,15 +42,16 @@ async function inserer(code, table, condition, valeurs) {
   return true;
 }
 
+// Le mot de passe n'est plus dans ce tableau : il est déduit du rôle via .env.
 const UTILISATEURS = [
-  ['U001', 'Sokhna Faty Gueye',     'mamefat2004@gmail.com',    '762389486', 'admin123',   'ADMIN',   'https://plus.unsplash.com/premium_photo-1681493917930-829e1b41add0?q=80&w=687&auto=format&fit=crop'],
-  ['U002', 'Oustadh Lamine Mbaye',  'laminembaye@gmail.com',    '772086514', 'guide123',   'GUIDE',   'https://images.unsplash.com/photo-1750612306471-46997387626a?w=600&auto=format&fit=crop&q=60'],
-  ['U003', 'Ahmad Bin Ibrahim',     'ahmad@gmail.com',          '774268022', 'pelerin123', 'PELERIN', 'https://images.unsplash.com/photo-1655421186987-6c483d99c520?q=80&w=687&auto=format&fit=crop'],
-  ['U004', 'Khadija Diaw',          'khadijadiaw@gmail.com',    '784342332', 'pelerin123', 'PELERIN', 'https://images.unsplash.com/photo-1713845784644-82265abf5872?q=80&w=687&auto=format&fit=crop'],
-  ['U005', 'Fatimah Ibrahim',       'fatimah@gmail.com',        '775003108', 'proche123',  'PROCHE',  null],
-  ['U006', 'Cheikh Diaw',           'cheikhdiaw@gmail.com',     '765785943', 'proche123',  'PROCHE',  'https://images.unsplash.com/photo-1656887322222-6b493d220614?w=600&auto=format&fit=crop&q=60'],
-  ['U007', 'Oustadh Mamadou Gueye', 'mamadougueye@gmail.com',   '785405593', 'guide123',   'GUIDE',   null],
-  ['U008', 'Mamadou Diouf',         'mamadou173diouf@gmail.com','767666666', 'admin123',   'ADMIN',   null],
+  ['U001', 'Sokhna Faty Gueye',     'mamefat2004@gmail.com',    '762389486', 'ADMIN',   'https://plus.unsplash.com/premium_photo-1681493917930-829e1b41add0?q=80&w=687&auto=format&fit=crop'],
+  ['U002', 'Oustadh Lamine Mbaye',  'laminembaye@gmail.com',    '772086514', 'GUIDE',   'https://images.unsplash.com/photo-1750612306471-46997387626a?w=600&auto=format&fit=crop&q=60'],
+  ['U003', 'Ahmad Bin Ibrahim',     'ahmad@gmail.com',          '774268022', 'PELERIN', 'https://images.unsplash.com/photo-1655421186987-6c483d99c520?q=80&w=687&auto=format&fit=crop'],
+  ['U004', 'Khadija Diaw',          'khadijadiaw@gmail.com',    '784342332', 'PELERIN', 'https://images.unsplash.com/photo-1713845784644-82265abf5872?q=80&w=687&auto=format&fit=crop'],
+  ['U005', 'Fatimah Ibrahim',       'fatimah@gmail.com',        '775003108', 'PROCHE',  null],
+  ['U006', 'Cheikh Diaw',           'cheikhdiaw@gmail.com',     '765785943', 'PROCHE',  'https://images.unsplash.com/photo-1656887322222-6b493d220614?w=600&auto=format&fit=crop&q=60'],
+  ['U007', 'Oustadh Mamadou Gueye', 'mamadougueye@gmail.com',   '785405593', 'GUIDE',   null],
+  ['U008', 'Mamadou Diouf',         'mamadou173diouf@gmail.com','767666666', 'ADMIN',   null],
 ];
 
 const HOTELS = [
@@ -100,10 +108,10 @@ async function seed() {
   const compter = (nouveau) => { if (nouveau) crees++; };
 
   // --- utilisateurs (mots de passe hachés avec bcrypt) ---
-  for (const [code, nomComplet, email, telephone, motDePasse, role, photo] of UTILISATEURS) {
+  for (const [code, nomComplet, email, telephone, role, photo] of UTILISATEURS) {
     compter(await inserer(code, utilisateurs, eq(utilisateurs.email, email), {
       nomComplet, email, telephone,
-      motDePasse: await hashMotDePasse(motDePasseDe(motDePasse)),
+      motDePasse: await hashMotDePasse(motDePasseDuRole(role)),
       role, photo, dateCreation: '2026-07-01',
     }));
   }
@@ -174,12 +182,12 @@ async function seed() {
   }
 
   console.log(`Seed terminé : ${crees} ligne(s) créée(s), le reste existait déjà.`);
-  const mdp = (defaut) => (process.env.SEED_PASSWORD ? '(SEED_PASSWORD)' : defaut);
-  console.log('\nComptes de démonstration (hachés en base) :');
-  console.log('  ADMIN   mamefat2004@gmail.com  ', mdp('admin123'));
-  console.log('  GUIDE   laminembaye@gmail.com  ', mdp('guide123'));
-  console.log('  PELERIN ahmad@gmail.com        ', mdp('pelerin123'));
-  console.log('  PROCHE  fatimah@gmail.com      ', mdp('proche123'));
+  console.log('\nComptes de démonstration (mots de passe hachés en base) :');
+  console.log('  ADMIN   mamefat2004@gmail.com   -> SEED_MDP_ADMIN');
+  console.log('  GUIDE   laminembaye@gmail.com   -> SEED_MDP_GUIDE');
+  console.log('  PELERIN ahmad@gmail.com         -> SEED_MDP_PELERIN');
+  console.log('  PROCHE  fatimah@gmail.com       -> SEED_MDP_PROCHE');
+  console.log('Les valeurs sont dans ton fichier .env, jamais dans le dépôt.');
   process.exit(0);
 }
 
