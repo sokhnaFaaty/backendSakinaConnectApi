@@ -13,6 +13,8 @@ utilisateursRouter.use('*', authMiddleware);
 utilisateursRouter.openapi({
   method: 'get',
   path: '/',
+       tags: ['Utilisateurs'],
+
   security: [{ Bearer: [] }],
   responses: {
     200: {
@@ -28,6 +30,8 @@ utilisateursRouter.openapi({
 utilisateursRouter.openapi({
   method: 'get',
   path: '/{id}',
+       tags: ['Utilisateurs'],
+
   request: { params: z.object({ id: z.string().uuid() }) },
   security: [{ Bearer: [] }],
   responses: {
@@ -51,6 +55,8 @@ utilisateursRouter.openapi({
 utilisateursRouter.openapi({
   method: 'post',
   path: '/',
+       tags: ['Utilisateurs'],
+
   security: [{ Bearer: [] }],
   request: {
     body: {
@@ -86,6 +92,8 @@ utilisateursRouter.openapi({
 utilisateursRouter.openapi({
   method: 'patch',
   path: '/{id}',
+       tags: ['Utilisateurs'],
+
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: {
@@ -119,6 +127,8 @@ utilisateursRouter.openapi({
 utilisateursRouter.openapi({
   method: 'delete',
   path: '/{id}',
+       tags: ['Utilisateurs'],
+
   request: { params: z.object({ id: z.string().uuid() }) },
   security: [{ Bearer: [] }],
   responses: {

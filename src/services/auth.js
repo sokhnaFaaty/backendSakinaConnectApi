@@ -13,10 +13,16 @@ export async function hashMotDePasse(motDePasse) {
 }
 
 export async function connecter(email, motDePasse) {
+  // 1. Log pour vérifier l'email reçu
+  console.log(`Tentative de connexion pour l'email : ${email}`);
+
   const [utilisateur] = await db
     .select()
     .from(utilisateurs)
     .where(eq(utilisateurs.email, email));
+
+  // 2. Log pour voir si la base de données a trouvé un utilisateur
+  console.log(`Utilisateur trouvé dans la DB :`, utilisateur);
 
   if (!utilisateur) {
     throw new Error('IDENTIFIANTS_INVALIDES');
@@ -27,6 +33,10 @@ export async function connecter(email, motDePasse) {
   }
 
   const motDePasseValide = await bcrypt.compare(motDePasse, utilisateur.motDePasse);
+
+  // 3. Log pour vérifier si le mot de passe correspond au hash stocké
+  console.log(`Résultat de la comparaison bcrypt :`, motDePasseValide);
+
   if (!motDePasseValide) {
     throw new Error('IDENTIFIANTS_INVALIDES');
   }
@@ -41,6 +51,9 @@ export async function connecter(email, motDePasse) {
 
   // On ne renvoie jamais motDePasse (même hashé)
   const { motDePasse: _hash, ...userSafe } = utilisateur;
+
+  // 4. Log de succès
+  console.log(`Connexion réussie pour l'utilisateur : ${utilisateur.email}`);
 
   return { token, user: userSafe };
 }

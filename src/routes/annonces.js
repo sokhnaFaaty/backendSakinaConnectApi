@@ -13,6 +13,7 @@ annoncesRouter.use('*', authMiddleware);
 annoncesRouter.openapi({
   method: 'get',
   path: '/',
+   tags: ['Annonces'],
   security: [{ Bearer: [] }],
   responses: { 200: { content: { 'application/json': { schema: z.array(AnnonceSchema) } } } }
 }, async (c) => {
@@ -23,6 +24,8 @@ annoncesRouter.openapi({
 annoncesRouter.openapi({
   method: 'get',
   path: '/{id}',
+   tags: ['Annonces'],
+
   request: { params: z.object({ id: z.string().uuid() }) },
   security: [{ Bearer: [] }],
   responses: { 200: { content: { 'application/json': { schema: AnnonceSchema } } } }
@@ -37,6 +40,8 @@ annoncesRouter.openapi({
 annoncesRouter.openapi({
   method: 'post',
   path: '/',
+   tags: ['Annonces'],
+
   security: [{ Bearer: [] }],
   request: { body: { content: { 'application/json': { schema: AnnonceSchema.omit({ id: true }) } } } },
   responses: { 201: { content: { 'application/json': { schema: AnnonceSchema } } } }
@@ -49,6 +54,8 @@ annoncesRouter.openapi({
 annoncesRouter.openapi({
   method: 'patch',
   path: '/{id}',
+   tags: ['Annonces'],
+
   request: { 
     params: z.object({ id: z.string().uuid() }),
     body: { content: { 'application/json': { schema: AnnonceSchema.partial() } } }
@@ -67,6 +74,8 @@ annoncesRouter.openapi({
 annoncesRouter.openapi({
   method: 'delete',
   path: '/{id}',
+   tags: ['Annonces'],
+
   request: { params: z.object({ id: z.string().uuid() }) },
   security: [{ Bearer: [] }],
   responses: { 204: { description: 'Supprimé' } }

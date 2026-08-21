@@ -12,7 +12,7 @@ cloudinary.config({
 export function uploadImage(buffer) {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder: 'stock-produits' },
+      { folder: 'SakinaConnect' },
       (erreur, resultat) => {
         if (erreur) return reject(erreur);
         resolve(resultat);

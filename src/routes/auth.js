@@ -7,6 +7,7 @@ export const authRouter = new OpenAPIHono();
 authRouter.openapi({
   method: 'post',
   path: '/connecter',
+   tags: ['Auth'],
   request: { 
     body: { 
       content: { 

@@ -107,13 +107,36 @@ async function seed() {
   let crees = 0;
   const compter = (nouveau) => { if (nouveau) crees++; };
 
-  // --- utilisateurs (mots de passe hachés avec bcrypt) ---
+  // --- utilisateurs (MISE À JOUR SÉCURISÉE) ---
   for (const [code, nomComplet, email, telephone, role, photo] of UTILISATEURS) {
-    compter(await inserer(code, utilisateurs, eq(utilisateurs.email, email), {
-      nomComplet, email, telephone,
-      motDePasse: await hashMotDePasse(motDePasseDuRole(role)),
-      role, photo, dateCreation: '2026-07-01',
-    }));
+    const hashedPassword = await hashMotDePasse(motDePasseDuRole(role));
+    
+    // 1. On cherche l'utilisateur par son email
+    const [existant] = await db.select().from(utilisateurs).where(eq(utilisateurs.email, email));
+    
+    if (existant) {
+      // Si l'utilisateur existe, on le MET À JOUR (pour appliquer le nouveau mot de passe du .env)
+      await db.update(utilisateurs)
+        .set({
+          nomComplet,
+          telephone,
+          photo,
+          motDePasse: hashedPassword, // Le nouveau mot de passe hashé
+        })
+        .where(eq(utilisateurs.email, email));
+      
+      ids.set(code, existant.id);
+      console.log(` Utilisateur ${email} mis à jour (mot de passe actualisé).`);
+    } else {
+      // Sinon, on le crée
+      const [newUser] = await db.insert(utilisateurs).values({
+        nomComplet, email, telephone,
+        motDePasse: hashedPassword,
+        role, photo, dateCreation: '2026-07-01',
+      }).returning();
+      ids.set(code, newUser.id);
+      console.log(`Utilisateur ${email} créé.`);
+    }
   }
 
   // --- admins / guides ---
@@ -181,7 +204,7 @@ async function seed() {
     }));
   }
 
-  console.log(`Seed terminé : ${crees} ligne(s) créée(s), le reste existait déjà.`);
+  console.log(`Seed terminé : ${crees} ligne(s) créée(s), le reste a été mis à jour ou existait déjà.`);
   console.log('\nComptes de démonstration (mots de passe hachés en base) :');
   console.log('  ADMIN   mamefat2004@gmail.com   -> SEED_MDP_ADMIN');
   console.log('  GUIDE   laminembaye@gmail.com   -> SEED_MDP_GUIDE');
