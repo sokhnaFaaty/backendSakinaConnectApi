@@ -1,5 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { ConnexionSchema, TokenSchema, ErreurSchema } from '../schemas.js';
+import { ConnexionSchema, TokenSchema, ErreurSchema, MessageSchema } from '../schemas.js';
 import * as authService from '../services/auth.js';
 
 export const authRouter = new OpenAPIHono();
@@ -7,6 +7,7 @@ export const authRouter = new OpenAPIHono();
 authRouter.openapi({
   method: 'post',
   path: '/connecter',
+   tags: ['Auth'],
   request: { 
     body: { 
       content: { 
@@ -37,4 +38,19 @@ authRouter.openapi({
     }
     return c.json({ erreur: 'Email ou mot de passe incorrect.' }, 401);
   }
+});
+
+authRouter.openapi({
+  method: 'post',
+  path: '/deconnexion',
+  tags: ['Auth'],
+  security: [{ Bearer: [] }], // Protégée par JWT
+  responses: {
+    200: {
+      description: 'Déconnexion réussie',
+      content: { 'application/json': { schema: MessageSchema } }
+    }
+  }
+}, async (c) => {
+  return c.json(await authService.deconnecter(), 200);
 });

@@ -34,6 +34,10 @@ export const TokenSchema = z.object({
   token: z.string(),
   user: UtilisateurPublicSchema,
 }).openapi('Token');
+
+export const MessageSchema = z.object({
+  message: z.string(),
+}).openapi('Message');
 // ----- 1. UTILISATEURS -----
 
 

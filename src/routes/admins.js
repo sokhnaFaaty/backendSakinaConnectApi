@@ -11,6 +11,7 @@ adminsRouter.use('*', authMiddleware);
 adminsRouter.openapi({
   method: 'get',
   path: '/',
+   tags: ['Admins'],
   security: [{ Bearer: [] }],
   responses: { 200: { content: { 'application/json': { schema: z.array(AdminSchema) } } } }
 }, async (c) => {
@@ -21,6 +22,7 @@ adminsRouter.openapi({
 adminsRouter.openapi({
   method: 'get',
   path: '/{id}',
+   tags: ['Admins'],
   request: { params: z.object({ id: z.string().uuid() }) },
   security: [{ Bearer: [] }],
   responses: { 200: { content: { 'application/json': { schema: AdminSchema } } } }
