@@ -57,3 +57,6 @@ export async function connecter(email, motDePasse) {
 
   return { token, user: userSafe };
 }
+export async function deconnecter() {
+  return { message: 'Déconnexion réussie' };
+}
