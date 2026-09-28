@@ -27,8 +27,77 @@ import {
  * permet aux tests de la charger et de lui envoyer des requêtes directement
  * dans le processus, sans ouvrir de port. Le démarrage vit dans index.js.
  */
+/**
+ * Traduction des codes d'erreur Zod en français.
+ *
+ * L'API ne doit pas parler anglais au milieu d'un parcours francophone : un
+ * message « Too small: expected string to have >=8 characters » dans un
+ * formulaire de connexion est un défaut, pas un détail. Table centrale plutôt
+ * qu'un message par champ : elle couvre aussi les schémas ajoutés plus tard,
+ * sans avoir à penser à les traduire.
+ */
+const MESSAGES_ZOD = {
+  invalid_type: (p) => `type attendu : ${p.expected}`,
+  too_small: (p) =>
+    p.origin === 'string'
+      ? `doit contenir au moins ${p.minimum} caractères`
+      : p.origin === 'array'
+        ? `doit contenir au moins ${p.minimum} éléments`
+        : `doit être supérieur ou égal à ${p.minimum}`,
+  too_big: (p) =>
+    p.origin === 'string'
+      ? `ne doit pas dépasser ${p.maximum} caractères`
+      : p.origin === 'array'
+        ? `ne doit pas dépasser ${p.maximum} éléments`
+        : `ne doit pas dépasser ${p.maximum}`,
+  invalid_format: (p) =>
+    p.format === 'email' ? 'adresse email invalide' : `format invalide (${p.format})`,
+  invalid_value: () => 'valeur non autorisée',
+  unrecognized_keys: () => 'champ(s) en trop',
+  invalid_union: () => 'valeur invalide',
+  invalid_element: () => 'élément invalide',
+};
+
+function messageZod(probleme) {
+  const traducteur = MESSAGES_ZOD[probleme.code];
+  // Repli sur le message d'origine : mieux vaut un message en anglais que
+  // « donnée invalide » sans aucun détail sur le champ fautif.
+  return traducteur ? traducteur(probleme) : probleme.message;
+}
+
+/**
+ * Erreurs de validation : le front attend partout la forme { erreur: "..." }.
+ *
+ * SANS ce hook, @hono/zod-openapi répond sur ses 400 avec
+ * { success: false, error: { name: "ZodError", message: "…" } }, forme que
+ * l'appelant ne sait pas lire : il retombe alors sur un message générique
+ * alors qu'il existe un message précis. Mélanger deux formats d'erreur selon
+ * la route oblige le client à deviner.
+ *
+ * `champs` est un bonus : le formulaire peut surligner les champs fautifs
+ * sans analyser le message. Le client peut l'ignorer sans breakage.
+ */
+function reponseValidation(resultat, c) {
+  if (resultat.success) return;
+
+  const problemes = resultat.error?.issues ?? [];
+  const champs = {};
+
+  for (const probleme of problemes) {
+    const champ = probleme.path?.join('.') || 'global';
+    if (!champs[champ]) champs[champ] = messageZod(probleme);
+  }
+
+  const nomPremier = problemes[0]?.path?.join('.');
+  const message = nomPremier
+    ? `Donnée invalide : ${nomPremier}. ${messageZod(problemes[0])}`
+    : 'Données invalides.';
+
+  return c.json({ erreur: message, champs }, 400);
+}
+
 export function creerApp() {
-  const app = new OpenAPIHono();
+  const app = new OpenAPIHono({ defaultHook: reponseValidation });
 
   // Origines autorisées à appeler l'API (le front). Plusieurs valeurs séparées par des virgules.
   const originesAutorisees = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
