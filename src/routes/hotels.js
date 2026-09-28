@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../middlewares/auth.js";
+import { ecritureReserveeA } from "../middlewares/authorize.js";
 import { hotelsService } from "../services/hotels.js";
 import { HotelSchema } from "../schemas.js";
 
@@ -8,6 +9,10 @@ export const hotelsRouter = new OpenAPIHono();
 
 // Protection de TOUTES les routes de ce routeur
 hotelsRouter.use("*", authMiddleware);
+
+// Les hôtels sont des données de référence gérées par l'administration.
+// HotelForm et GroupeForm ne les créent qu'en tant qu'ADMIN.
+hotelsRouter.use("*", ecritureReserveeA("ADMIN"));
 
 // ---- GET ALL ----
 hotelsRouter.openapi(

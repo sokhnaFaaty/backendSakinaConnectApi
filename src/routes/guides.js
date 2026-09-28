@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../middlewares/auth.js";
+import { ecritureReserveeA } from "../middlewares/authorize.js";
 import { guidesService } from "../services/guides.js";
 import { GuideSchema } from "../schemas.js";
 
@@ -8,6 +9,11 @@ const guidesRouter = new OpenAPIHono();
 
 // Protège toutes les routes
 guidesRouter.use("*", authMiddleware);
+
+// Créer, modifier ou archiver un guide est une décision d'organisation :
+// ADMIN uniquement. Le guide lui-même n'a jamais eu ce pouvoir dans
+// l'application, donc cette restriction ne retire rien à personne.
+guidesRouter.use("*", ecritureReserveeA("ADMIN"));
 
 // GET ALL
 guidesRouter.openapi(

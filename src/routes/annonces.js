@@ -1,6 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { z } from '@hono/zod-openapi';
 import { authMiddleware } from '../middlewares/auth.js';
+import { ecritureReserveeA } from '../middlewares/authorize.js';
 import { annoncesService } from '../services/annonces.js';
 import { AnnonceSchema } from '../schemas.js'; 
 
@@ -8,6 +9,11 @@ const annoncesRouter = new OpenAPIHono();
 
 // Protège toutes les routes
 annoncesRouter.use('*', authMiddleware);
+
+// Même logique que le planning : un guide publie et modifie des communiqués
+// dans l'application (AnnonceForm), donc il garde ce droit. Le pèlerin et le
+// proche n'écrivent pas d'annonce.
+annoncesRouter.use('*', ecritureReserveeA(['ADMIN', 'GUIDE']));
 
 // GET ALL
 annoncesRouter.openapi({

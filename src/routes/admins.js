@@ -1,11 +1,16 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { z } from '@hono/zod-openapi';
 import { authMiddleware } from '../middlewares/auth.js';
+import { requireRole } from '../middlewares/authorize.js';
 import { adminsService } from '../services/admins.js';
 import { AdminSchema } from '../schemas.js';
 
 const adminsRouter = new OpenAPIHono();
 adminsRouter.use('*', authMiddleware);
+
+// Le routeur « admins » EST la liste des administrateurs : le lire ou le
+// modifier n'a de sens que pour un administrateur. Aucune exception.
+adminsRouter.use('*', requireRole('ADMIN'));
 
 // GET ALL (Liste des admins)
 adminsRouter.openapi({

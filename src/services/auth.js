@@ -7,23 +7,28 @@ import 'dotenv/config';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Réutilisée par les futurs services (guides, pelerins, proches) à la création d'un compte
+// Réutilisée par les services (demandes d'inscription, création directe par
+// l'ADMIN) pour hasher un mot de passe.
 export async function hashMotDePasse(motDePasse) {
   return bcrypt.hash(motDePasse, 10);
 }
 
-export async function connecter(email, motDePasse) {
-  // 1. Log pour vérifier l'email reçu
-  console.log(`Tentative de connexion pour l'email : ${email}`);
+/** Retire le hash avant tout envoi au client. */
+export function sansMotDePasse(utilisateur) {
+  const { motDePasse: _hash, ...userSafe } = utilisateur;
+  return userSafe;
+}
 
+export async function connecter(email, motDePasse) {
   const [utilisateur] = await db
     .select()
     .from(utilisateurs)
     .where(eq(utilisateurs.email, email));
 
-  // 2. Log pour voir si la base de données a trouvé un utilisateur
-  console.log(`Utilisateur trouvé dans la DB :`, utilisateur);
-
+  // --- Correctif D : plus aucun log de donnée personnelle ---
+  // Les anciens console.log affichaient l'email, puis l'INTÉGRALITÉ de la ligne
+  // utilisateurs (donc le hash bcrypt) en cas d'échec. Un log d'erreur n'a
+  // jamais besoin de contenir une donnée personnelle pour être utile.
   if (!utilisateur) {
     throw new Error('IDENTIFIANTS_INVALIDES');
   }
@@ -32,10 +37,10 @@ export async function connecter(email, motDePasse) {
     throw new Error('COMPTE_ARCHIVE');
   }
 
-  const motDePasseValide = await bcrypt.compare(motDePasse, utilisateur.motDePasse);
-
-  // 3. Log pour vérifier si le mot de passe correspond au hash stocké
-  console.log(`Résultat de la comparaison bcrypt :`, motDePasseValide);
+  const motDePasseValide = await bcrypt.compare(
+    motDePasse,
+    utilisateur.motDePasse,
+  );
 
   if (!motDePasseValide) {
     throw new Error('IDENTIFIANTS_INVALIDES');
@@ -49,14 +54,48 @@ export async function connecter(email, motDePasse) {
   };
   const token = await sign(payload, JWT_SECRET);
 
-  // On ne renvoie jamais motDePasse (même hashé)
-  const { motDePasse: _hash, ...userSafe } = utilisateur;
-
-  // 4. Log de succès
-  console.log(`Connexion réussie pour l'utilisateur : ${utilisateur.email}`);
-
-  return { token, user: userSafe };
+  return { token, user: sansMotDePasse(utilisateur) };
 }
+
+/**
+ * Changement de mot de passe par le propriétaire du compte.
+ *
+ * Deux cas d'appel :
+ *  - mot de passe définitif  : ancien = le mot de passe actuel ;
+ *  - mot de passe provisoire : idem, le provisoire EST le mot de passe actuel.
+ *    C'est ce qui permet à un compte ADMIN créé par quelqu'un d'autre de
+ *    s'authentifier juste ce qu'il faut pour choisir son propre mot de passe.
+ *
+ * Le drapeau doitRepasser est remis à false quand le changement réussit :
+ * c'est la condition pour que le compte récupère ses droits.
+ */
+export async function changerMotDePasse(utilisateurId, ancien, nouveau) {
+  const [utilisateur] = await db
+    .select()
+    .from(utilisateurs)
+    .where(eq(utilisateurs.id, utilisateurId))
+    .limit(1);
+
+  if (!utilisateur) throw new Error('IDENTIFIANTS_INVALIDES');
+
+  const valide = await bcrypt.compare(ancien, utilisateur.motDePasse);
+  if (!valide) throw new Error('ANCIEN_MOT_DE_PASSE_INCORRECT');
+
+  if (ancien === nouveau) {
+    throw new Error('MOT_DE_PASSE_IDENTIQUE');
+  }
+
+  const hash = await hashMotDePasse(nouveau);
+
+  const [misAJour] = await db
+    .update(utilisateurs)
+    .set({ motDePasse: hash, doitChangerMotDePasse: false })
+    .where(eq(utilisateurs.id, utilisateurId))
+    .returning();
+
+  return sansMotDePasse(misAJour);
+}
+
 export async function deconnecter() {
   return { message: 'Déconnexion réussie' };
 }

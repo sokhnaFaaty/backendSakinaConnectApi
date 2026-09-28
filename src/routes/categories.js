@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../middlewares/auth.js";
+import { ecritureReserveeA } from "../middlewares/authorize.js";
 import { categoriesService } from "../services/categories.js";
 import { CategorieSchema } from "../schemas.js";
 
@@ -8,6 +9,11 @@ const categoriesRouter = new OpenAPIHono();
 
 // Protège toutes les routes
 categoriesRouter.use("*", authMiddleware);
+
+// Catégories : référentiel administré. La lecture reste ouverte à tous les
+// rôles authentifiés (elle est affichée dans l'itinéraire d'un pèlerin),
+// l'écriture est réservée à l'ADMIN.
+categoriesRouter.use("*", ecritureReserveeA("ADMIN"));
 
 // GET ALL
 categoriesRouter.openapi(

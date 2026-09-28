@@ -5,6 +5,7 @@ export const RoleEnum = z.enum(['ADMIN', 'GUIDE', 'PELERIN', 'PROCHE']);
 export const StatutVisaEnum = z.enum(['EN_ATTENTE', 'APPROUVE', 'REFUSE']);
 export const StatutModerationEnum = z.enum(['EN_ATTENTE', 'APPROUVE', 'REJETE']);
 export const StatutSosEnum = z.enum(['EN_ATTENTE', 'RESOLU']);
+export const StatutDemandeInscriptionEnum = z.enum(['EN_ATTENTE', 'ACCEPTEE', 'REFUSEE']);
 
 // ----- SCHÉMAS COMMUNS -----
 export const IdParamSchema = z.object({
@@ -29,6 +30,10 @@ export const UtilisateurPublicSchema = z.object({
   photo: z.string().nullable(),
   dateCreation: z.string().date(), // Format YYYY-MM-DD
   isActive: z.boolean().default(true),
+  // Permet au front d'afficher l'écran "changez votre mot de passe" dès la
+  // connexion. Le contrôle d'accès réel reste côté backend (401), voir
+  // middlewares/auth.js.
+  doitChangerMotDePasse: z.boolean().default(false),
 }).openapi('UtilisateurPublic');
 export const TokenSchema = z.object({
   token: z.string(),
@@ -49,7 +54,21 @@ export const UtilisateurCreationSchema = z.object({
   role: RoleEnum,
   photo: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  // Parcours B : l'ADMIN fournit un mot de passe TEMPORAIRE et ce drapeau
+  // vaut true. Le compte est alors bloqué sur /changer-mot-de-passe jusqu'au
+  // premier changement réel (contrôlé par authMiddleware).
+  doitChangerMotDePasse: z.boolean().optional(),
 }).openapi('UtilisateurCreation');
+
+// ----- 13. CHANGEMENT DE MOT DE PASSE (propre) -----
+// Route accessible avec un mot de passe provisoire, et c'est la SEULE route
+// accessible dans ce cas. Voir ALLOWED_WHILE_PASSWORD_CHANGE dans
+// middlewares/auth.js.
+export const ChangerMotDePasseSchema = z.object({
+  ancienMotDePasse: z.string().min(1),
+  nouveauMotDePasse: z.string().min(8).max(128),
+  confirmationMotDePasse: z.string(),
+}).openapi('ChangerMotDePasse');
 
 // ----- 2. ADMINS -----
 export const AdminSchema = z.object({
@@ -158,3 +177,52 @@ export const SosSchema = z.object({
   commentaire: z.string().optional(),
   statut: StatutSosEnum.default('EN_ATTENTE'),
 }).openapi('Sos');
+
+// ----- 12. DEMANDES D'INSCRIPTION -----
+// Schéma de lecture renvoyé par l'API.
+// `motDePasse` en est ABSENT VOLONTAIREMENT : le hash ne sort jamais du serveur,
+// ni à l'ADMIN, ni dans les logs. C'est le seul moyen de garantir qu'il ne
+// fuite pas, plutôt que d'espérer que chaque appelant sache l'omettre.
+export const DemandeInscriptionSchema = z.object({
+  id: z.string().uuid(),
+  nom: z.string(),
+  prenom: z.string(),
+  telephone: z.string(),
+  email: z.string().email(),
+  referencePaiement: z.string(),
+  statut: StatutDemandeInscriptionEnum.default('EN_ATTENTE'),
+  motifRefus: z.string().nullable().optional(),
+  commentaireRefus: z.string().nullable().optional(),
+  groupeId: z.string().uuid().nullable().optional(),
+  utilisateurId: z.string().uuid().nullable().optional(),
+  pelerinId: z.string().uuid().nullable().optional(),
+  dateDemande: z.string().datetime({ offset: true }),
+  dateTraitement: z.string().datetime({ offset: true }).nullable().optional(),
+  traitePar: z.string().uuid().nullable().optional(),
+}).openapi('DemandeInscription');
+
+// Corps de la demande publique POST /demandes-inscription.
+// Le pèlerin ne fournit PAS son groupe (choisi par l'ADMIN) et PAS son
+// numéro de passeport (saisi par l'ADMIN dans la modale d'acceptation).
+export const DemandeInscriptionCreationSchema = z.object({
+  nom: z.string().trim().min(2).max(100),
+  prenom: z.string().trim().min(2).max(100),
+  telephone: z.string().trim().min(6).max(20),
+  email: z.string().trim().email().max(255),
+  referencePaiement: z.string().trim().min(1).max(100),
+  motDePasse: z.string().min(8).max(128),
+  confirmationMotDePasse: z.string(),
+}).openapi('DemandeInscriptionCreation');
+
+export const DemandeInscriptionAccepterSchema = z.object({
+  groupeId: z.string().uuid(),
+  numeroPasseport: z.string().trim().min(3).max(50),
+  // Facultatif : le pilgrin n'est pas obligé d'en fournir à l'inscription.
+  contactUrgenceNom: z.string().trim().max(100).optional(),
+  contactUrgenceTelephone: z.string().trim().max(20).optional(),
+}).openapi('DemandeInscriptionAccepter');
+
+export const DemandeInscriptionRefuserSchema = z.object({
+  motifRefus: z.string().trim().min(2).max(500),
+  commentaireRefus: z.string().trim().max(1000).optional(),
+}).openapi('DemandeInscriptionRefuser');

@@ -1,13 +1,26 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../middlewares/auth.js";
+import { ecritureReserveeA } from "../middlewares/authorize.js";
 import { sosService } from "../services/sos.js";
-import { SosSchema } from "../schemas.js";
+import { SosSchema, ErreurSchema } from "../schemas.js";
 
 const sosRouter = new OpenAPIHono();
 
 // Protège toutes les routes
 sosRouter.use("*", authMiddleware);
+
+// Déclarer une alerte : le pèlerin uniquement. C'est une position GPS, elle
+// n'a rien à faire dans le corps d'une requête d'un guide ou d'un proche.
+// Prise en charge : administration et guides. Le PROCHE est informé, il ne
+// traite pas. Suppression : administration.
+sosRouter.use("*", ecritureReserveeA({
+  POST: "PELERIN",
+  PATCH: ["ADMIN", "GUIDE"],
+  DELETE: "ADMIN",
+}));
+
+const accesRefuse = { content: { "application/json": { schema: ErreurSchema } } };
 
 // GET ALL
 sosRouter.openapi(
@@ -36,14 +49,13 @@ sosRouter.openapi(
     request: { params: z.object({ id: z.string().uuid() }) },
     security: [{ Bearer: [] }],
     responses: {
-      200: { content: { "application/json": { schema: SosSchema } } },
+      201: { content: { "application/json": { schema: SosSchema } } },
+      403: accesRefuse,
     },
   },
   async (c) => {
-    const { id } = c.req.valid("param");
-    const item = await sosService.getById(id);
-    if (!item) return c.json({ erreur: "Non trouvé" }, 404);
-    return c.json(item, 200);
+    const data = c.req.valid("json");
+    return c.json(await sosService.create(data), 201);
   },
 );
 
@@ -88,6 +100,7 @@ sosRouter.openapi(
     security: [{ Bearer: [] }],
     responses: {
       200: { content: { "application/json": { schema: SosSchema } } },
+      403: accesRefuse,
     },
   },
   async (c) => {
@@ -108,7 +121,10 @@ sosRouter.openapi(
 
     request: { params: z.object({ id: z.string().uuid() }) },
     security: [{ Bearer: [] }],
-    responses: { 204: { description: "Supprimé" } },
+    responses: {
+      204: { description: "Supprimé" },
+      403: accesRefuse,
+    },
   },
   async (c) => {
     const { id } = c.req.valid("param");

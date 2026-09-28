@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../middlewares/auth.js";
+import { ecritureReserveeA } from "../middlewares/authorize.js";
 import { groupesService } from "../services/groupes.js";
 import { GroupeSchema } from "../schemas.js";
 
@@ -8,6 +9,10 @@ const groupesRouter = new OpenAPIHono();
 
 // Protège toutes les routes
 groupesRouter.use("*", authMiddleware);
+
+// Un groupe est une entité d'organisation : sa création, son affectation de
+// guide et son archivage relèvent de l'administration.
+groupesRouter.use("*", ecritureReserveeA("ADMIN"));
 
 // GET ALL
 

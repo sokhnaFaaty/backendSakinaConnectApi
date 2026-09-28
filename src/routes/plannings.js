@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "@hono/zod-openapi";
 import { authMiddleware } from "../middlewares/auth.js";
+import { ecritureReserveeA } from "../middlewares/authorize.js";
 import { planningsService } from "../services/plannings.js";
 import { PlanningSchema } from "../schemas.js";
 
@@ -8,6 +9,12 @@ const planningsRouter = new OpenAPIHono();
 
 // Protège toutes les routes
 planningsRouter.use("*", authMiddleware);
+
+// Le planning est la responsabilité conjointe de l'administration et des
+// guides : dans l'application, les deux créent et modifient des étapes
+// (PlanningForm est utilisé par les deux). Retirer le GUIDE ici casserait la
+// page Itinéraire d'un guide — d'où cette vérification avant de restreindre.
+planningsRouter.use("*", ecritureReserveeA(["ADMIN", "GUIDE"]));
 
 // GET ALL
 planningsRouter.openapi(
