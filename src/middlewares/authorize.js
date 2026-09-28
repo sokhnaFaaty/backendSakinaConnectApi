@@ -178,6 +178,53 @@ export async function pelerinIdDeUtilisateur(utilisateurId) {
 }
 
 /**
+ * Résout le groupe d'un pèlerin. C'est le maillon qui relie un pèlerin à son
+ * guide : pèlerin → groupe → guide.
+ */
+export async function groupeIdDePelerin(pelerinId) {
+  const rows = await db
+    .select({ groupeId: pelerins.groupeId })
+    .from(pelerins)
+    .where(eq(pelerins.id, pelerinId))
+    .limit(1);
+  return rows[0]?.groupeId ?? null;
+}
+
+/**
+ * Résout le guide EN CHARGE d'un pèlerin, par le groupe qui le rattache.
+ *
+ * Sert à ne pas faire confiance à un `guideId` venu du client : sur une alerte
+ * SOS, le guide destinataire se déduit de l'appartenance du pèlerin, il ne se
+ * choisit pas dans un formulaire. Un pèlerin pourrait sinon router sa propre
+ * alerte vers le guide d'un autre groupe — l'informer d'un groupe qu'il ne suit
+ * pas, ou le faire intervenir hors de sa mission.
+ */
+export async function guideDePelerin(pelerinId) {
+  const groupeId = await groupeIdDePelerin(pelerinId);
+  if (!groupeId) return null;
+
+  const rows = await db
+    .select({ guideId: groupes.guideId })
+    .from(groupes)
+    .where(eq(groupes.id, groupeId))
+    .limit(1);
+  return rows[0]?.guideId ?? null;
+}
+
+/**
+ * Le guide connecté est-il le guide en charge de ce pèlerin ?
+ *
+ * Garde de propriété sur les lectures et les écritures qui visent une ligne
+ * existante : un guide manipule les alertes de SES pèlerins, pas celles des
+ * autres groupes.
+ */
+export async function guideEstEnChargeDuPelerin(utilisateurId, pelerinId) {
+  const monGuideId = await groupeDuGuide(utilisateurId);
+  if (!monGuideId) return false;
+  return monGuideId === (await guideDePelerin(pelerinId));
+}
+
+/**
  * Résout l'id du pèlerin SUIVI par un proche.
  *
  * Inverse de pelerinIdDeUtilisateur : on part du proche pour remonter au
