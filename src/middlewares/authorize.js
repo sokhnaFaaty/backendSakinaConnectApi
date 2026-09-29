@@ -217,11 +217,18 @@ export async function guideDePelerin(pelerinId) {
  * Garde de propriété sur les lectures et les écritures qui visent une ligne
  * existante : un guide manipule les alertes de SES pèlerins, pas celles des
  * autres groupes.
+ *
+ * La comparaison se fait sur les GROUPES, pas sur les guides. Les deux
+ * identifiants sont des UUID de tables différentes : un `guides.id` ne peut
+ * jamais être égal à un `groupes.id`. Comparer l'ID du groupe du guide à
+ * l'ID du guide du pèlerin renvoie donc toujours `false` et interdit à tout
+ * guide d'accéder à la moindre alerte — un bug qui casse la fonction sans
+ * jamais ouvrir de faille. On aligne donc deux groupes.
  */
 export async function guideEstEnChargeDuPelerin(utilisateurId, pelerinId) {
-  const monGuideId = await groupeDuGuide(utilisateurId);
-  if (!monGuideId) return false;
-  return monGuideId === (await guideDePelerin(pelerinId));
+  const monGroupeId = await groupeDuGuide(utilisateurId);
+  if (!monGroupeId) return false;
+  return monGroupeId === (await groupeIdDePelerin(pelerinId));
 }
 
 /**
