@@ -35,6 +35,40 @@ export const UtilisateurPublicSchema = z.object({
   // middlewares/auth.js.
   doitChangerMotDePasse: z.boolean().default(false),
 }).openapi('UtilisateurPublic');
+
+/**
+ * Répertoire minimal : ce que le front a besoin pour AFFICHER un nom.
+ *
+ * Volontairement sans `email`, `isActive`, `dateCreation` ni
+ * `doitChangerMotDePasse`. La liste complète est réservée à l'ADMIN ; sans
+ * cette séparation, un pèlerin connecté pouvait énumérer les identifiants de
+ * connexion de tous les comptes, y compris les administrateurs, et l'état de
+ * chaque compte.
+ *
+ * `telephone` reste présent : c'est un besoin d'affichage réel pour l'urgence
+ * (un pèlerin appelle son guide, un proche appelle le guide du pèlerin qu'il
+ * suit). Il manque encore un découpage par relation — voir chapitre 13.
+ */
+export const UtilisateurRepertoireSchema = z.object({
+  id: z.string().uuid(),
+  nomComplet: z.string(),
+  role: RoleEnum,
+  photo: z.string().nullable(),
+  telephone: z.string(),
+}).openapi('UtilisateurRepertoire');
+
+/**
+ * Réponse du contrôle d'unicité.
+ *
+ * Le contrôle était fait côté client en téléchargeant TOUTE la liste des
+ * utilisateurs — ce qui exposait les emails et les téléphones de tout le monde
+ * à chaque utilisateur connecté, y compris pour vérifier un seul champ. Il est
+ * désormais décidé par le serveur, qui ne renvoie qu'un booléen.
+ */
+export const UtilisateurExistenceSchema = z.object({
+  email: z.boolean(),
+  telephone: z.boolean(),
+}).openapi('UtilisateurExistence');
 export const TokenSchema = z.object({
   token: z.string(),
   user: UtilisateurPublicSchema,

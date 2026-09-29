@@ -11,8 +11,46 @@
 // pas simule, et n'a pas besoin de l'etre : c'est la comparaison inter-fonctions
 // qu'on verifie, pas le SQL).
 
-process.env.JWT_SECRET ||= 'secret-de-test-uniquement-0123456789abcdef';
-process.env.DATABASE_URL ||= 'postgres://u:p@127.0.0.1:5432/base_test';
+// ---------------------------------------------------------------------------
+// PROTECTION CONTRE LA BASE DE PRODUCTION.
+//
+// `src/db/client.js` fait `import 'dotenv/config'` : il charge le `.env` du
+// depot, dont DATABASE_URL pointe sur la base RENDER de production. Un `||=`
+// ici ne l'empacherait pas : dotenv a deja pose la variable, donc le test
+// tournerait avec l'URL de production.
+//
+// C'est le scenario le plus grave possible ici : un test qui execute une
+// requete ecrirait, ou pire, viderait, la base de production. On force donc une
+// URL locale AVANT tout import, puis on refuse explicitement de tourner si
+// l'URL cible un hote distant.
+// ---------------------------------------------------------------------------
+const HOTE_INTERDIT = /render\.com|neon\.tech|supabase\.com|amazonaws\.com|azure\.com/i;
+
+function urlDeTest() {
+  const explicit = process.env.TEST_DATABASE_URL;
+  if (explicit) return explicit;
+
+  const forcee = 'postgres://u:p@127.0.0.1:5432/base_test';
+  const issueDuDotenv = process.env.DATABASE_URL;
+
+  if (issueDuDotenv && HOTE_INTERDIT.test(issueDuDotenv)) {
+    console.log(
+      '  note  le .env pointe sur une base distante (' +
+        issueDuDotenv.replace(/\/\/[^@]*@/, '//***@') +
+        '). Elle est ecrasée : ce test n\'execute aucune requete, et il ne doit jamais en executer une sur celle-ci.',
+    );
+  }
+
+  return forcee;
+}
+
+process.env.JWT_SECRET = process.env.TEST_JWT_SECRET || 'secret-de-test-uniquement-0123456789abcdef';
+process.env.DATABASE_URL = urlDeTest();
+
+if (HOTE_INTERDIT.test(process.env.DATABASE_URL)) {
+  console.error('  ECHEC ce test refuse de s\'executer sur une base distante');
+  process.exit(1);
+}
 
 const { db } = await import('../src/db/client.js');
 const { groupes, guides, pelerins } = await import('../src/db/schema.js');

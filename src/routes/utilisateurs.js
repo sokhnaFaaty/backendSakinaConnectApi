@@ -7,7 +7,7 @@ import { utilisateursService } from '../services/utilisateurs.js';
 import { utilisateurs } from '../db/schema.js';
 import { db } from '../db/client.js';
 import { estViolationUnique } from '../services/demandeInscriptions.js';
-import { UtilisateurPublicSchema, UtilisateurCreationSchema, ErreurSchema } from '../schemas.js';
+import { UtilisateurPublicSchema, UtilisateurRepertoireSchema, UtilisateurExistenceSchema, UtilisateurCreationSchema, ErreurSchema } from '../schemas.js';
 
 const utilisateursRouter = new OpenAPIHono();
 
@@ -47,6 +47,76 @@ async function proprietaireDe(id) {
   return ligne?.id;
 }
 
+// ---- GET /existe ----
+/**
+ * Contrôle d'unicité, décidé par le serveur.
+ *
+ * Ce contrôle était fait côté client : le formulaire téléchargeait la liste
+ * complète des utilisateurs, puis cherchait si l'email ou le téléphone saisi
+ * s'y trouvait déjà. C'est-à-dire que **chaque utilisateur connecté pouvait
+ * récupérer l'annuaire entier pour vérifier un seul champ** — et qu'un
+ * pèlerin ou un proche obtenait un 403 dès qu'il éditait son profil, parce que
+ * la liste complète est désormais réservée à l'ADMIN.
+ *
+ * Le serveur répond par deux booléens, sans rien divulguer d'autre.
+ *
+ * DÉCLARÉ AVANT `/:id` et avant `/repertoire` : Hono teste dans l'ordre
+ * d'enregistrement, et `/existe` n'est pas un UUID.
+ */
+utilisateursRouter.openapi({
+  method: 'get',
+  path: '/existe',
+  tags: ['Utilisateurs'],
+
+  security: [{ Bearer: [] }],
+  request: {
+    query: z.object({
+      email: z.string().trim().toLowerCase().optional(),
+      telephone: z.string().trim().optional(),
+      exclureId: z.string().uuid().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: 'Un booléen par critère : true = déjà utilisé par un autre compte',
+      content: { 'application/json': { schema: UtilisateurExistenceSchema } }
+    },
+    401: { content: { 'application/json': { schema: ErreurSchema } } }
+  }
+}, async (c) => {
+  const { email, telephone, exclureId } = c.req.valid('query');
+
+  const resultat = await utilisateursService.existe({ email, telephone, exclureId });
+  return c.json(resultat, 200);
+});
+
+// ---- GET REPERTOIRE ----
+/**
+ * Répertoire minimal, ouvert à tout utilisateur authentifié.
+ *
+ * DÉCLARÉ AVANT `GET /:id`, et c'est important : Hono teste les routes dans
+ * l'ordre d'enregistrement, donc un `/:id` placé plus haut attraperait
+ * `/repertoire` et le validateur `z.string().uuid()` renverrait une erreur de
+ * paramètre au lieu de la liste. Un endpoint mal placé n'est pas « un peu
+ * cassé », il est simplement injoignable.
+ */
+utilisateursRouter.openapi({
+  method: 'get',
+  path: '/repertoire',
+  tags: ['Utilisateurs'],
+
+  security: [{ Bearer: [] }],
+  responses: {
+    200: {
+      description: 'Répertoire minimal : nom, rôle, photo et téléphone',
+      content: { 'application/json': { schema: z.array(UtilisateurRepertoireSchema) } }
+    },
+    401: { content: { 'application/json': { schema: ErreurSchema } } }
+  }
+}, async (c) => {
+  return c.json(await utilisateursService.getRepertoire(), 200);
+});
+
 // ---- GET ALL ----
 utilisateursRouter.openapi({
   method: 'get',
@@ -59,9 +129,17 @@ utilisateursRouter.openapi({
       description: 'Liste des utilisateurs',
       content: { 'application/json': { schema: z.array(UtilisateurPublicSchema) } }
     },
-    401: { content: { 'application/json': { schema: ErreurSchema } } }
+    401: { content: { 'application/json': { schema: ErreurSchema } } },
+    403: { content: { 'application/json': { schema: ErreurSchema } } }
   }
 }, async (c) => {
+  // Liste complète réservée à l'administration : elle contient les emails, l'état
+  // des comptes et le drapeau « doit changer de mot de passe » de tout le monde.
+  // Le front n'en a besoin que pour l'annuaire des guides ; partout ailleurs, le
+  // `/repertoire` suffit et ne divulgue que ce qui doit être affiché.
+  const refus = exigerRole(c, 'ADMIN');
+  if (refus) return refus;
+
   return c.json(await utilisateursService.getAll(), 200);
 });
 
